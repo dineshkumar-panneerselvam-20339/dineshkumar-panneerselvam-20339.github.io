@@ -3,91 +3,238 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Account Details</title>
+    <title>Browser Detection with Periodic REST Calls</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
             max-width: 800px;
             margin: 0 auto;
-            background-color: white;
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            line-height: 1.6;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
+        #browser-info {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+        }
+        #status-container {
             margin-top: 20px;
         }
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
+        .status-message {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
         }
-        th {
-            background-color: #f8f9fa;
+        .initiated {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+        }
+        .completed {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+        .wait-bar {
+            height: 20px;
+            background-color: #007bff;
+            margin-left: 15px;
+            transition: width 0.1s linear;
+            border-radius: 3px;
+        }
+        .counter {
+            margin-left: 10px;
+            min-width: 80px;
+        }
+        .call-group {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+        #next-call {
             font-weight: bold;
-        }
-        .account-value {
-            color: #2c3e50;
-            font-size: 16px;
-        }
-        h1 {
-            color: #333;
-            margin-bottom: 20px;
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            text-align: center;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Account Details</h1>
-        <table>
-            <tr>
-                <th>Field</th>
-                <th>Details</th>
-            </tr>
-            <tr>
-                <td>Name</td>
-                <td class="account-value">Sarah Johnson</td>
-            </tr>
-            <tr>
-                <td>Account Number</td>
-                <td class="account-value">1234-5678-9012-3456</td>
-            </tr>
-            <tr>
-                <td>Email ID</td>
-                <td class="account-value">sarah.johnson@email.com</td>
-            </tr>
-        </table>
-    </div>
-
+    <h1>Browser and Periodic REST Demo</h1>
+    
+    <div id="browser-info">Detecting browser...</div>
+    
+    <div id="next-call">Next call in: 3.0s</div>
+    
+    <div id="status-container"></div>
+    
     <script>
-        // Add interactivity - highlight row on hover
-        document.querySelectorAll('tr').forEach(row => {
-            row.addEventListener('mouseover', () => {
-                row.style.backgroundColor = '#f0f0f0';
-            });
-            row.addEventListener('mouseout', () => {
-                row.style.backgroundColor = '';
-            });
-        });
+        // Function to detect browser name and version
+        function detectBrowser() {
+            const userAgent = navigator.userAgent;
+            let browserName = "Unknown";
+            let browserVersion = "Unknown";
+            
+            if (/Firefox\/([0-9.]+)/.test(userAgent)) {
+                browserName = "Firefox";
+                browserVersion = userAgent.match(/Firefox\/([0-9.]+)/)[1];
+            } else if (/Edg\/([0-9.]+)/.test(userAgent)) {
+                browserName = "Edge";
+                browserVersion = userAgent.match(/Edg\/([0-9.]+)/)[1];
+            } else if (/Chrome\/([0-9.]+)/.test(userAgent)) {
+                browserName = "Chrome";
+                browserVersion = userAgent.match(/Chrome\/([0-9.]+)/)[1];
+            } else if (/Safari\/([0-9.]+)/.test(userAgent) && !/Chrome/.test(userAgent)) {
+                browserName = "Safari";
+                if (/Version\/([0-9.]+)/.test(userAgent)) {
+                    browserVersion = userAgent.match(/Version\/([0-9.]+)/)[1];
+                }
+            } else if (/MSIE\s([0-9.]+)/.test(userAgent) || /Trident.*rv:([0-9.]+)/.test(userAgent)) {
+                browserName = "Internet Explorer";
+                browserVersion = userAgent.match(/(?:MSIE\s|Trident.*rv:)([0-9.]+)/)[1];
+            } else if (/OPR\/([0-9.]+)/.test(userAgent)) {
+                browserName = "Opera";
+                browserVersion = userAgent.match(/OPR\/([0-9.]+)/)[1];
+            }
+            
+            return `${browserName} ${browserVersion}`;
+        }
+        
+        // Display browser info
+        document.getElementById('browser-info').textContent = detectBrowser();
+        
+        let callCount = 0;
+        let nextCallTimer;
+        let currentCallGroup;
+        
+        // Update countdown timer
+        function updateCountdown() {
+            let timeLeft = 3.0;
+            const nextCallElement = document.getElementById('next-call');
+            
+            function updateTimer() {
+                timeLeft -= 0.1;
+                timeLeft = Math.max(0, timeLeft);
+                nextCallElement.textContent = `Next call in: ${timeLeft.toFixed(1)}s`;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(countdownInterval);
+                }
+            }
+            
+            updateTimer();
+            const countdownInterval = setInterval(updateTimer, 100);
+        }
+        
+        // Function to create a call group
+        function createCallGroup() {
+            callCount++;
+            currentCallGroup = document.createElement('div');
+            currentCallGroup.className = 'call-group';
+            currentCallGroup.innerHTML = `<h3>Call #${callCount}</h3>`;
+            document.getElementById('status-container').prepend(currentCallGroup);
+            return currentCallGroup;
+        }
+        
+        // Function to add status message with wait bar
+        function addStatusMessage(message, className, parent) {
+            const messageContainer = document.createElement('div');
+            messageContainer.className = `status-message ${className}`;
+            
+            const messageText = document.createElement('span');
+            messageText.textContent = message;
+            messageContainer.appendChild(messageText);
+            
+            if (className === 'initiated') {
+                const counterSpan = document.createElement('span');
+                counterSpan.className = 'counter';
+                counterSpan.textContent = '0.0s';
+                messageContainer.appendChild(counterSpan);
+                
+                const waitBar = document.createElement('div');
+                waitBar.className = 'wait-bar';
+                waitBar.style.width = '0px';
+                messageContainer.appendChild(waitBar);
+                
+                // Start updating the wait time and bar
+                let waitTime = 0;
+                const interval = setInterval(() => {
+                    waitTime += 0.1;
+                    counterSpan.textContent = `${waitTime.toFixed(1)}s`;
+                    waitBar.style.width = `${(waitTime / 3) * 100}px`;
+                    
+                    if (waitTime >= 3) {
+                        clearInterval(interval);
+                    }
+                }, 100);
+            }
+            
+            parent.appendChild(messageContainer);
+            return messageContainer;
+        }
+        
+        // Simulated REST call
+        function makeRESTCall() {
+            const callGroup = createCallGroup();
+            
+            // Display initiated message
+            addStatusMessage("A GET call made", "initiated", callGroup);
+            
+            // Mock URL (JSONPlaceholder is a free online REST API for testing)
+            const mockEndpoint = 'https://jsonplaceholder.typicode.com/todos/1';
+            
+            // Make the fetch call
+            fetch(mockEndpoint)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // We received data but won't display it as per requirements
+                    console.log("browserName:", detectBrowser());
+                    
+                    // Display completed message
+                    addStatusMessage("A GET call completed", "completed", callGroup);
+                    
+                    // Schedule next call
+                    scheduleNextCall();
+                })
+                .catch(error => {
+                    console.error('There was a problem with the fetch operation:', error);
+                    addStatusMessage(`Error: ${error.message}`, "error", callGroup);
+                    
+                    // Schedule next call even if this one failed
+                    scheduleNextCall();
+                });
+        }
+        
+        function scheduleNextCall() {
+            updateCountdown();
+            nextCallTimer = setTimeout(makeRESTCall, 3000);
+        }
+        
+        // Execute first REST call when page loads
+        window.onload = makeRESTCall;
     </script>
 
-    <script>
-    window.birdieSettings={
-        /*
-        Identify your customer here. More info:
-        https://docs.birdie.so/birdie-docs/getting-started/snippet#2.-identify-your-customers
-        */
-    };
-    </script>
-    <!-- Birdie code Snippet -->
-    <script>(function(){window.addEventListener("load",function(){var t=document.createElement("script");t.type="text/javascript",t.async=!0,t.src="https://app.birdie.so/widget/embed/rwhw66db",document.body.appendChild(t)});})();</script>
-
+<script>
+window.birdieSettings={
+    /*
+    Identify your customer here. More info:
+    https://docs.birdie.so/birdie-docs/getting-started/snippet#2.-identify-your-customers
+    */
+};
+</script>
+<!-- Birdie code Snippet -->
+<script>(function(){window.addEventListener("load",function(){var t=document.createElement("script");t.type="text/javascript",t.async=!0,t.src="https://app.birdie.so/widget/embed/rwhw66db",document.body.appendChild(t)});})();</script>
 </body>
 </html>
